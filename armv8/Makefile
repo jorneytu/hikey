@@ -20,7 +20,7 @@ OBJS += lib/watchdog.o
 
 all: base
 	$(LD) $(OBJS) -T cortex-a53.lds -Map cortex-a53.map -o lucifer.elf
-	$(Q)$(call SYSTEM_MAP, lucifer)> System.map
+	$(Q)$(call SYSTEM_MAP, lucifer.elf)> System.map
 	$(Q)$(COPY) --gap-fill=0xff -O binary lucifer.elf lucifer.bin
 	$(Q)echo "aarch64 binary build ..."
 
