@@ -1,0 +1,14 @@
+* HIKEY board power up on aarch32
+
+* fastboot1.img (0xf9809000)
+	i.	DRAM init
+
+* l-load (0x07000000)
+	i.		init UART
+	ii.		copy aarch64 code to 0x37000000
+	iii.	switch aarch64
+
+* armv8 (0x37000000)
+	i.	aarch64 runtime
+
+* sudo python hisi-idt.py -d /dev/ttyUSB0 --img1 fastboot1.img --img2 ./boot/l-loader.bin
