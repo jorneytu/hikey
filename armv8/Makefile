@@ -2,13 +2,9 @@ include config.mk
 OBJS := arm/start.o
 OBJS += arm/mmu.o
 OBJS += arm/vector.o
-OBJS += arm/gic.o
 OBJS += arm/bandwidth.o
 
-
 OBJS += lib/main.o
-#OBJS += lib/cache.o
-
 OBJS += lib/misc.o
 OBJS += lib/irq.o
 OBJS += lib/aarch64.o
