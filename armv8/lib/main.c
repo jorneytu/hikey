@@ -1,167 +1,135 @@
 #include <config.h>
 #include <common.h>
 
-extern void drop_to_el2(void);
-extern void drop_to_el1(void);
-#define DEFAULT_MODE_EL1 1
+#define TIMER0_BASE 0xf8008020
+
+#define TIMER_LOAD 		(TIMER0_BASE + 0x00)
+#define TIMER_VALUE 	(TIMER0_BASE + 0x04)
+#define TIMER_CTRL 		(TIMER0_BASE + 0x08)
+#define TIMER_INTCLR 	(TIMER0_BASE + 0x0c)
+#define TIMER_RIS		(TIMER0_BASE + 0x10)
+#define TIMER_MIS 		(TIMER0_BASE + 0x14)
+#define TIMER_BGLOAD 	(TIMER0_BASE + 0x18)
+
+//#define BUS_CLOCK	32000
+#define BUS_CLOCK	19200000
 
 static char welcome_str[] = "Welcome Hikey Board ...\n";
 
-void led_display(void)
+static void timer_setup(void)
 {
-	gpio_set(0);
-	mdelay(1000);
-	gpio_clear(0);
-
-	gpio_set(1);
-	mdelay(1000);
-	gpio_clear(1);
-
-	gpio_set(2);
-	mdelay(1000);
-	gpio_clear(2);
-
-	gpio_set(3);
-	mdelay(1000);
-	gpio_clear(3);
+	
+	write32(TIMER_LOAD, BUS_CLOCK);
+	write32(TIMER_CTRL, 0xc2);
 }
 
-void mem_test(void)
+extern void Writer(void *, unsigned long, int);
+int bandwidth(void)
 {
-	int i;
-	unsigned int *s1 = (unsigned int *)0x4;
-	unsigned int *s2 = (unsigned int *)0x900000;
-	unsigned int *_s1 = s1;
-	unsigned int *_s2 = s2;
+       unsigned int t;
+       int i, loop, L;
+#if 1
+#define BLOCK  5
+       static unsigned long sz[] = { 
+               0x200, /* 16K */
+               0x4000, /* 16K */
+               0x8000, /* 32K L1 cache */
+               0x80000, /* 512K L2 cache */
+               0x800000 /* 8M NOR memory */
+       };
+#else
+#define BLOCK  36
+       static unsigned long sz[] = { 
+               256,
+               512,
+               768,
+               1024,
+               2048,
+               3072,
+               4096,
+               6144,
+               8192,   // Some processors' L1 data caches are only 8kB.
+               12288,
+               16384,
+               20480,
+               24576,
+               28672,
+               32768,  // Common L1 data cache size.
+               40960,
+               49152,
+               65536,
+               131072, // Old L2 cache size.
+               192 * 1024,
+               256 * 1024,     // Old L2 cache size.
+               384 * 1024,     // Old L2 cache size.
 
-	printstr("memory test ...\n");
+			   512 * 1024,	// Old L2 cache size.
+			   768 * 1024,
+			   1 << 20,	// 1 MB = common L2 cache size.
+			   (1024 + 256) * 1024,	// 1.25
+			   (1024 + 512) * 1024,	// 1.5
+			   (1024 + 768) * 1024,	// 1.75
+			   1 << 21,	// 2 MB = common L2 cache size.
+			   (2048 + 256) * 1024,	// 2.25
+			   (2048 + 512) * 1024,	// 2.5
+			   (2048 + 768) * 1024,	// 2.75
+			   3072 * 1024,	// 3 MB = common L2 cache sized.
+			   1 << 22,	// 4 MB
+			   5242880,	// 5 megs
+			   6291456,	// 6 megs (std L2 cache size)
 
-	for(i = 0; i < 0x100; i++){
-		*_s2++ = *_s1++;
-	}
+       };
+#endif
 
-	for(i = 0; i < 0x100; i++){
-		if (*s2++ != *s1++) {
-			printstr("memory in trouble\n");
-			break;
-		}
-	}
+
+       printstr("Writer\n\n");
+	   for (i = 0; i < BLOCK; i++) 
+	   {
+		   L = 0;
+		   write32(TIMER_LOAD, BUS_CLOCK * 10);
+		   loop  = (1 << 26) / sz[i];
+
+		   do {
+
+			   Writer((void *)0x000000, sz[i], loop);
+			   L += loop;
+			   t =  (BUS_CLOCK * 10 - read32(TIMER_VALUE));
+
+		   } while(t < BUS_CLOCK);
+
+		   if (sz[i] == 0x8000)
+			   printstr("*\t");
+		   else if (sz[i] == 0x80000)
+			   printstr("*\t");
+		   else
+			   printstr(" \t");
+
+		   printstr("chunk size:\t");
+		   print32hex(sz[i]);
+		   printstr("\tloop: ");
+		   printdec(L);
+		   printstr("\ttime diff: ");
+		   printdec(t);
+		   printstr("\tspeed: ");
+		   printdec((sz[i] * L * BUS_CLOCK)/ t / 0x100000);
+		   printstr("MB/s\n");
+	   }
+
+	   return 0;
 }
-
-void debug(void)
-{
-	int value = 0;
-	asm volatile("mrs %0, sctlr_el3"
-			:"+r"(value)
-			:
-			: "memory");
-
-	if ((value & SC_MMU_ENABLE) == SC_MMU_ENABLE)
-		printstr("MMU enable\n");
-
-	if ((value & SC_DCACHE_ENABLE) == SC_DCACHE_ENABLE)
-		printstr("D-Cache enable\n");
-
-	if ((value & SC_ICACHE_ENABLE) == SC_ICACHE_ENABLE)
-		printstr("I-Cache enable\n");
-
-}
-
 int main(void)
 {
-
 	uart_init();
 	printstr(welcome_str);
 
-#if 0
-	enable_caches();
-#endif
-
-	debug();
-#if 0
-	drop_to_el2();
-#endif
-
-	interrupt_disable();
 	bootstrap_gic_init();
-	interrupt_enable();
 	timer_init();
-	gic_send_sgi(0x1, 11);
-	while (1){
-		gic_send_sgi(0x1, 11);
-		mem_test();
-		led_display();
-		//get_timer_value();
-		interrupt_enable();
-		//gic_debug(46);
-#if 0
-		asm volatile( "mrs %0, DAIF"
-			: "=r"(value)
-			:
-			: "memory");
-		print32hex(value);
-#endif
-	}
+	interrupt_enable();
+	timer_setup();
+	bandwidth();
+
+	for(;;);
 
 	return 0;
 }
 
-int switch_to_el2(void)
-{
-	unsigned int value = 0;
-	long long _value = 0;
-#if DEFAULT_MODE_EL1
-	drop_to_el1();
-#endif
-	printstr("el2 mode ...!\n");
-
-	asm volatile("mrs %0 , CurrentEL"
-			: "=r" (value)
-			:
-			: "memory");
-	printstr("CurrentEL:\t");
-	print32hex(value);
-
-	asm volatile("mrs %0 , SCTLR_EL2"
-			: "=r" (_value)
-			:
-			: "memory");
-	printstr("SCTLR_EL2:\t");
-	print64hex(_value);
-	while(1);
-}
-
-int switch_to_el1(void)
-{
-	unsigned int value = 0;
-
-	printstr("el1 mode ...!\n");
-
-	asm volatile("mrs %0 , CurrentEL"
-			: "=r" (value)
-			:
-			: "memory");
-	printstr("CurrentEL:\t");
-	print32hex(value);
-
-#if EL1_IS_SECURE
-	asm volatile("mrs %0 , SCTLR_EL1"
-			: "=r" (_value)
-			:
-			: "memory");
-	printstr("SCTLR_EL1:\t");
-	print64hex(_value);
-#endif
-
-
-	interrupt_disable();
-	bootstrap_gic_init();
-	interrupt_enable();
-
-
-	gic_send_sgi(0x1, 1);
-	while(1){
-		mem_test();
-		led_display();
-	}
-}

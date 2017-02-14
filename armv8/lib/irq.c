@@ -29,7 +29,6 @@ void do_sync_handle(void)
 
 void do_irq_handle(void)
 {
-	printstr("do_irq_handle\n");
 	gic_handle_irq();
 }
 

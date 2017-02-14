@@ -1,4 +1,4 @@
-all:arm startup
+all: clean arm startup
 
 startup:
 	@make -s -C boot

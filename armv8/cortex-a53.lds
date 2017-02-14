@@ -6,31 +6,36 @@ SECTIONS
 	. = 0x37000000;
 
 	. = ALIGN(8);
-	.text :{
-		arm/start.o (.text*)
+	.text . : {
+		*start.o (.text)
+		* (.text*)
+		* (.rodata*)
 	}
 
-	. = ALIGN(8);
-	.data : {
-		*(.data*)
+	.data . : {
+		* (.data*)
 	}
 
-	. = ALIGN(8);
-	.bss (NOLOAD) : {
-
-	__bss_start = .;
-
-		*(.bss)
-
-	__bss_end = .;
-
-	. = ALIGN(8);
-
-	__stack_start = .;
-	. = __stack_start + 0x400000;
-	__stack_end = .;
+	. = ALIGN(0x1000);
+	.pagetable (NOLOAD) : {
+		__pagetable_level2 = .;
+		. = __pagetable_level2 + (4096 * 3);
+		__pagetable_level1 = .;
+		. = __pagetable_level1 + (8 * 4);
+		__pagetable_end = .;
 	}
 
-	. = ALIGN(0x1000000);
-	__pgtable_start = .;
+	.stack : {
+
+		. = ALIGN(8);
+		__bss_start = .;
+		* (.bss)
+		__bss_end = .;
+
+		. = ALIGN(32);
+		__stack_start = .;
+		. = __stack_start + 0x2000;
+		. = ALIGN(32);
+		__stack_end = .;
+	}
 }

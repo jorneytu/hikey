@@ -5,6 +5,7 @@
 void printch(char );
 void uart_init(void);
 void printstr(char *s);
+void printdec(int x);
 void print32hex(int x);
 void print64hex(long long x);
 

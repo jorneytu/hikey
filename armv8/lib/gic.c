@@ -116,17 +116,17 @@ void gic_handle_irq(void)
 {
 	unsigned int value = 0;
 	unsigned int irq_nr = 0;
-	unsigned int cpuid = 0;
 	value = read32(GICC_REG(GIC_CPU_INTACK));
 
-
 	irq_nr = value & 0x3ff;
+#if 0
 	cpuid = ( value >> 10 ) & 0x7 ;
 
 	printstr("CPUID:\t");
 	print32hex(cpuid);
 	printstr("IRQ:\t");
 	print32hex(irq_nr);
+#endif
 
 	if (irq_nr < 16)
 		handle_sgi(irq_nr);

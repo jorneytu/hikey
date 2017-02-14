@@ -44,16 +44,13 @@ int get_timer_value(void)
 
 void timer_init(void)
 {
-	write32(TIMER_LOAD, 0x100);
-	write32(TIMER_BGLOAD, 0x100);
-	write32(TIMER_VALUE, 0);
+	write32(TIMER_LOAD, 320000 / 1000);
 
-#if 1
-	write32(TIMER_INTCLR, 1);
+#if 0
+	write32(TIMER_INTCLR, 0);
 #endif
 
-	write32(TIMER_CTRL, 0xfe);
+	write32(TIMER_CTRL, 0xf2);
 	gic_enable_irq(TIMER0_IRQ, 1);
-	//gic_enable_irq(47, 1);
 }
 

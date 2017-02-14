@@ -61,8 +61,6 @@ void print32hex(int n)
 {
 	int i, m;
 	char a[10] = {0};
-	a[8] = '\n';
-	a[9] = '\0';
 	for (i = 0; i < 8; i++){
 		m = n & 0xf;
 		a[7 - i] = hex2ch[m];
@@ -76,14 +74,27 @@ void print64hex(long long n)
 {
 	int i, m;
 	char a[18] = {0};
-	a[16] = '\n';
-	a[17] = '\0';
 	for (i = 0; i < 16; i++){
 		m = n & 0xf;
 		a[15 - i] = hex2ch[m];
 		n = n >> 4;
 	}
 	printstr("0x");
+	printstr(a);
+}
+
+void printdec(int n)
+{
+	int i = 7;
+	char a[9] = {0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+
+	a[8] = '\0';
+
+	do {
+		a[i] = hex2ch[n % 10];
+		n /= 10;
+		i--;
+	} while((i >= 0)&& (n));
 	printstr(a);
 }
 
