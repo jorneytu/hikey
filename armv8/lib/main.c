@@ -24,10 +24,8 @@ static void timer_setup(void)
 }
 
 extern void Writer(void *, unsigned long, int);
-int bandwidth(void)
-{
-       unsigned int t;
-       int i, loop, L;
+extern void Reader(void *, unsigned long, int);
+
 #if 1
 #define BLOCK  5
        static unsigned long sz[] = { 
@@ -81,41 +79,57 @@ int bandwidth(void)
        };
 #endif
 
+static void bandwidth_route(int rw)
+{
+	unsigned int t;
+	int i, loop, L;
 
-       printstr("Writer\n\n");
-	   for (i = 0; i < BLOCK; i++) 
-	   {
-		   L = 0;
-		   write32(TIMER_LOAD, BUS_CLOCK * 10);
-		   loop  = (1 << 26) / sz[i];
+	if (rw)
+		printstr("Writer\n\n");
+	else
+		printstr("Reader\n\n");
 
-		   do {
+	for (i = 0; i < BLOCK; i++) 
+	{
+		L = 0;
+		write32(TIMER_LOAD, BUS_CLOCK * 10);
+		loop  = (1 << 26) / sz[i];
 
-			   Writer((void *)0x000000, sz[i], loop);
-			   L += loop;
-			   t =  (BUS_CLOCK * 10 - read32(TIMER_VALUE));
+		do {
 
-		   } while(t < BUS_CLOCK);
+			if (rw)
+				Writer((void *)0x000000, sz[i], loop);
+			else
+				Reader((void *)0x000000, sz[i], loop);
+			L += loop;
+			t =  (BUS_CLOCK * 10 - read32(TIMER_VALUE));
 
-		   if (sz[i] == 0x8000)
-			   printstr("*\t");
-		   else if (sz[i] == 0x80000)
-			   printstr("*\t");
-		   else
-			   printstr(" \t");
+		} while(t < BUS_CLOCK);
 
-		   printstr("chunk size:\t");
-		   print32hex(sz[i]);
-		   printstr("\tloop: ");
-		   printdec(L);
-		   printstr("\ttime diff: ");
-		   printdec(t);
-		   printstr("\tspeed: ");
-		   printdec((sz[i] * L * BUS_CLOCK)/ t / 0x100000);
-		   printstr("MB/s\n");
-	   }
+		if (sz[i] == 0x8000)
+			printstr("*\t");
+		else if (sz[i] == 0x80000)
+			printstr("*\t");
+		else
+			printstr(" \t");
 
-	   return 0;
+		printstr("chunk size:\t");
+		print32hex(sz[i]);
+		printstr("\tloop: ");
+		printdec(L);
+		printstr("\ttime diff: ");
+		printdec(t);
+		printstr("\tspeed: ");
+		printdec((sz[i] * L * BUS_CLOCK)/ t / 0x100000);
+		printstr("MB/s\n");
+	}
+
+}
+static int bandwidth(void)
+{
+	bandwidth_route(0);
+	bandwidth_route(1);
+	return 0;
 }
 int main(void)
 {
@@ -125,6 +139,7 @@ int main(void)
 	bootstrap_gic_init();
 	timer_init();
 	interrupt_enable();
+
 	timer_setup();
 	bandwidth();
 
@@ -132,4 +147,3 @@ int main(void)
 
 	return 0;
 }
-
